@@ -7,24 +7,37 @@ Built as a GSoC 2026 proposal demonstrator for Mandiant FLARE.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Agent Pipeline                          │
-│                                                              │
-│  ┌──────────┐  ┌───────────┐  ┌────────────┐  ┌──────────┐ │
-│  │  Trigger  │─▶│ Grounding │─▶│ Generator  │─▶│Validator │ │
-│  │  (Issue   │  │ (RAG over │  │ (Gemini +  │  │(Lint +   │ │
-│  │  Parser)  │  │ capa-rules│  │ Few-shot)  │  │ Format)  │ │
-│  └──────────┘  └───────────┘  └────────────┘  └──────────┘ │
-│        │              │              │              │         │
-│        ▼              ▼              ▼              ▼         │
-│  Context from   Top-K similar   Generated      Validated     │
-│  GitHub Issue   rules as        YAML rule      rule + PR     │
-│  + ATT&CK map   grounding                     description    │
-│                                      ▲              │         │
-│                                      └──────────────┘         │
-│                                    Self-correction loop       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Input
+        A["🐛 GitHub Issue\n#1114"]
+    end
+
+    subgraph Pipeline ["Agent Pipeline"]
+        direction LR
+        B["**Trigger**\n`trigger.py`\nParse issue →\nIssueContext"]
+        C["**Grounding**\n`grounding.py`\nRAG over 650+\ncapa rules"]
+        D["**Generator**\n`generator.py`\nGemini + few-shot\nprompt"]
+        E["**Validator**\n`validator.py`\nYAML → Schema\n→ Lint → Format"]
+
+        B --> C --> D --> E
+        E -- "❌ Errors" --> D
+    end
+
+    subgraph Output
+        F["✅ Valid capa Rule\n+ PR Description"]
+    end
+
+    A --> B
+    E -- "✅ Pass" --> F
+
+    style Pipeline fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#eee
+    style B fill:#0f3460,stroke:#53a8b6,color:#eee
+    style C fill:#0f3460,stroke:#53a8b6,color:#eee
+    style D fill:#0f3460,stroke:#53a8b6,color:#eee
+    style E fill:#0f3460,stroke:#53a8b6,color:#eee
+    style A fill:#16213e,stroke:#e94560,color:#eee
+    style F fill:#16213e,stroke:#53a8b6,color:#eee
 ```
 
 ## Components
