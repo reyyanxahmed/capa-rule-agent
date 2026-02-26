@@ -19,6 +19,7 @@ from typing import Optional
 from .trigger import IssueContext, parse_github_issue, parse_description
 from .generator import generate_rule, generate_rule_offline
 from .validator import validate_rule, ValidationResult
+from .grounding import RuleIndex, format_grounding_context
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,17 @@ def run_pipeline(
     format_script = format_script or str(DEFAULT_FORMAT_SCRIPT)
     rules_dir = rules_dir or str(DEFAULT_RULES_DIR)
 
+    # Build grounding context via RAG over existing rules
+    grounding_ctx = ""
+    if not offline and Path(rules_dir).exists():
+        logger.info("Building rule index for RAG grounding...")
+        index = RuleIndex()
+        n = index.index_directory(rules_dir)
+        if n > 0:
+            retrieved = index.retrieve(context, top_k=5)
+            grounding_ctx = format_grounding_context(retrieved, max_rules=3)
+            logger.info(f"Retrieved {len(retrieved)} similar rules for grounding")
+
     validation_errors: list[str] = []
     best_rule = ""
     best_result = ValidationResult(is_valid=False)
@@ -71,6 +83,7 @@ def run_pipeline(
             rule_text = generate_rule(
                 context,
                 validation_errors=validation_errors if attempt > 1 else None,
+                grounding_context=grounding_ctx,
             )
 
         logger.info(f"Generated rule ({len(rule_text)} chars)")

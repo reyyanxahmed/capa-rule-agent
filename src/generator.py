@@ -16,6 +16,7 @@ from google import genai
 from google.genai import types
 
 from .trigger import IssueContext
+from .grounding import RuleIndex, format_grounding_context
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,7 @@ def generate_rule(
     model_name: str = "gemini-2.0-flash",
     max_retries: int = 3,
     validation_errors: Optional[list[str]] = None,
+    grounding_context: Optional[str] = None,
 ) -> str:
     """
     Generate a capa rule from issue context using Gemini.
@@ -172,6 +174,7 @@ def generate_rule(
         model_name: Gemini model to use
         max_retries: Number of generation attempts
         validation_errors: Previous validation errors to correct
+        grounding_context: RAG-retrieved similar rules as context
 
     Returns:
         Generated YAML rule as string
@@ -180,6 +183,11 @@ def generate_rule(
 
     # Build the prompt
     prompt_parts = []
+
+    # Add RAG-retrieved grounding context first (if available)
+    if grounding_context:
+        prompt_parts.append(grounding_context)
+        prompt_parts.append("")
 
     # Add few-shot examples
     prompt_parts.append("## Examples of well-written capa rules\n")

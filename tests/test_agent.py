@@ -6,6 +6,7 @@ import pytest
 from src.trigger import parse_description, parse_github_issue, IssueContext, _infer_rule_metadata
 from src.validator import validate_yaml_syntax, validate_schema, validate_rule
 from src.generator import generate_rule_offline
+from src.grounding import RuleIndex, RuleEntry, format_grounding_context
 
 
 class TestTrigger:
@@ -151,6 +152,86 @@ class TestGenerator:
         rule = generate_rule_offline(ctx)
         ok, errors = validate_schema(rule)
         assert ok, f"Generated rule has schema errors: {errors}"
+
+
+class TestGrounding:
+    """Tests for the RAG grounding module."""
+
+    def _make_entry(self, name, namespace, attck_ids=None, keywords=None):
+        return RuleEntry(
+            path=f"{namespace}/{name}.yml",
+            name=name,
+            namespace=namespace,
+            raw_text=f"rule:\n  meta:\n    name: {name}\n    namespace: {namespace}\n",
+            attck_ids=attck_ids or [],
+            keywords=keywords or set(),
+        )
+
+    def test_index_builds(self):
+        index = RuleIndex()
+        assert len(index) == 0
+
+    def test_retrieve_by_attck(self):
+        index = RuleIndex()
+        entry = self._make_entry("test rule", "persistence/service", attck_ids=["T1543.003"])
+        index.rules.append(entry)
+        index._index_entry(0, entry)
+
+        ctx = parse_description("Detect service persistence T1543.003")
+        results = index.retrieve(ctx, top_k=3)
+        assert len(results) >= 1
+        assert results[0][0].name == "test rule"
+
+    def test_retrieve_by_namespace(self):
+        index = RuleIndex()
+        e1 = self._make_entry("persist via service", "persistence/service", keywords={"persist", "service", "windows"})
+        e2 = self._make_entry("unrelated rule", "communication/http", keywords={"http", "request"})
+        index.rules.extend([e1, e2])
+        index._index_entry(0, e1)
+        index._index_entry(1, e2)
+
+        ctx = parse_description("Detect persistence via Windows service")
+        results = index.retrieve(ctx, top_k=3)
+        assert len(results) >= 1
+        assert results[0][0].name == "persist via service"
+
+    def test_retrieve_by_keywords(self):
+        index = RuleIndex()
+        e1 = self._make_entry("encrypt with AES", "data-manipulation/encryption", keywords={"encrypt", "aes"})
+        e2 = self._make_entry("persist via registry", "persistence/registry", keywords={"persist", "registry"})
+        index.rules.extend([e1, e2])
+        index._index_entry(0, e1)
+        index._index_entry(1, e2)
+
+        ctx = parse_description("Detect AES encryption usage")
+        results = index.retrieve(ctx, top_k=3)
+        assert len(results) >= 1
+        assert results[0][0].name == "encrypt with AES"
+
+    def test_retrieve_empty_index(self):
+        index = RuleIndex()
+        ctx = parse_description("Detect anything")
+        results = index.retrieve(ctx, top_k=3)
+        assert results == []
+
+    def test_format_grounding_context_empty(self):
+        result = format_grounding_context([])
+        assert result == ""
+
+    def test_format_grounding_context_nonempty(self):
+        entry = self._make_entry("test rule", "persistence/service", attck_ids=["T1543.003"])
+        result = format_grounding_context([(entry, 5.0)], max_rules=1)
+        assert "test rule" in result
+        assert "Reference Rule 1" in result
+        assert "T1543.003" in result
+        assert "```yaml" in result
+
+    def test_extract_apis(self):
+        index = RuleIndex()
+        features = [{"api": "kernel32.CreateFileA"}, {"and": [{"api": "advapi32.RegSetValueEx"}]}]
+        apis = index._extract_apis(features)
+        assert "kernel32.CreateFileA" in apis
+        assert "advapi32.RegSetValueEx" in apis
 
 
 if __name__ == "__main__":

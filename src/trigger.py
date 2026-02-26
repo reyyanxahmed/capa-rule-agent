@@ -180,23 +180,27 @@ def _infer_rule_metadata(title: str, labels: list[str]) -> tuple[Optional[str], 
     title_lower = title.lower().strip()
 
     # Remove common prefixes
-    for prefix in ["rule idea:", "rule:", "detect", "add rule for", "add rule to"]:
+    for prefix in ["rule idea:", "rule:", "detect", "add rule for", "add rule to", "persist via"]:
         if title_lower.startswith(prefix):
             title_lower = title_lower[len(prefix):].strip()
+            break
 
     # Check for persistence patterns
-    if any(kw in title_lower for kw in ["persist", "autostart", "startup", "run key", "service"]):
+    if any(kw in title.lower() for kw in ["persist", "autostart", "startup", "run key", "service"]):
         namespace = "persistence"
-        if "registry" in title_lower or "shellservice" in title_lower.replace(" ", ""):
+        if "registry" in title.lower() or "shellservice" in title.lower().replace(" ", "") or "currentversion" in title.lower():
             namespace = "persistence/registry"
-        elif "service" in title_lower:
+        elif "service" in title.lower():
             namespace = "persistence/service"
-        elif "scheduled" in title_lower or "task" in title_lower:
+        elif "scheduled" in title.lower() or "task" in title.lower():
             namespace = "persistence/scheduled-tasks"
 
-    # Convert title to kebab-case rule name
-    name = re.sub(r"[^a-z0-9\s]", "", title_lower)
-    name = re.sub(r"\s+", " ", name).strip()
+    # Use the original title (cleaned) as the rule name — preserve readability
+    name = title.lower().strip()
+    for prefix in ["rule idea:", "rule:", "detect "]:
+        if name.startswith(prefix):
+            name = name[len(prefix):].strip()
+            break
 
     return name, namespace
 
