@@ -23,7 +23,7 @@ from src.quality_gate import (
     _extract_feature_set,
     _find_siblings,
 )
-from src.backlog import (
+from future.backlog import (
     classify_issue,
     fetch_backlog,
     process_backlog_batch,
