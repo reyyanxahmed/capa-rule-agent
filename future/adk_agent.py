@@ -22,14 +22,14 @@ from dataclasses import dataclass, field
 from google import genai
 from google.genai import types
 
-from .trigger import IssueContext, parse_github_issue, parse_description
-from .grounding import RuleIndex, format_grounding_context
-from .generator import generate_rule, generate_rule_offline
-from .validator import validate_rule, ValidationResult
-from .search_grounding import search_api_docs, search_threat_intel
-from .pr_workflow import create_pull_request, PRContext
-from .test_runner import run_capa_on_sample, TestResult
-from .quality_gate import run_quality_gate, QualityReport, ConfidenceLevel
+from src.trigger import IssueContext, parse_github_issue, parse_description
+from src.grounding import RuleIndex, format_grounding_context
+from src.generator import generate_rule, generate_rule_offline
+from src.validator import validate_rule, ValidationResult
+from future.search_grounding import search_api_docs, search_threat_intel
+from src.pr_workflow import create_pull_request, PRContext
+from src.test_runner import run_capa_on_sample, TestResult
+from src.quality_gate import run_quality_gate, QualityReport, ConfidenceLevel
 
 logger = logging.getLogger(__name__)
 

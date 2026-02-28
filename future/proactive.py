@@ -26,8 +26,8 @@ from pathlib import Path
 
 import requests
 
-from .trigger import IssueContext, ATTCK_TECHNIQUE_MAP, ATTCK_PATTERN
-from .grounding import RuleIndex
+from src.trigger import IssueContext, ATTCK_TECHNIQUE_MAP, ATTCK_PATTERN
+from src.grounding import RuleIndex
 
 logger = logging.getLogger(__name__)
 

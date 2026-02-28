@@ -23,7 +23,7 @@ from enum import Enum
 
 import requests
 
-from .trigger import IssueContext, _parse_issue_data, ATTCK_PATTERN
+from src.trigger import IssueContext, _parse_issue_data, ATTCK_PATTERN
 
 logger = logging.getLogger(__name__)
 
