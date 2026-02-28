@@ -400,7 +400,7 @@ class TestADKAgent:
     def test_agent_config_defaults(self):
         from src.adk_agent import AgentConfig
         config = AgentConfig()
-        assert config.model_name == "gemini-2.0-flash"
+        assert config.model_name == "gemini-3.1-pro"
         assert config.max_tool_rounds == 10
         assert config.auto_submit_pr is False
 

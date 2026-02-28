@@ -26,7 +26,7 @@ flowchart TB
     end
 
     subgraph Core ["⚙️ Generation"]
-        GEN["✏️ Generator\n`generator.py`\nGemini 2.0 Flash\n+ grounding context"]
+        GEN["✏️ Generator\n`generator.py`\nGemini 3.1 Pro\n+ grounding context"]
     end
 
     subgraph Validation ["🛡️ Validation Loop"]
@@ -246,7 +246,7 @@ python -m src.pipeline --process-backlog --backlog-batch 5 --rules-dir ../capa-r
 Stage 1: Issue Parsing        → Extract IssueContext (ATT&CK IDs, hashes, refs, decompilation)
 Stage 2: RAG Grounding        → Index 650+ rules, retrieve top-5 similar as few-shot examples
 Stage 3: Search Grounding     → Google Search for API docs + ATT&CK technique details
-Stage 4: LLM Generation       → Gemini 2.0 Flash with dual grounding context
+Stage 4: LLM Generation       → Gemini 3.1 Pro with dual grounding context
 Stage 5: Validation            → YAML → Schema → capa lint → capafmt
 Stage 6: Self-Correction       → Parse errors, re-prompt LLM (up to 3 attempts)
 Stage 7: Quality Gate          → 5-layer verification + confidence scoring
@@ -289,7 +289,7 @@ parse_issue → search_similar_rules → search_api_docs → generate_rule
 | **Issue Parser** | `src/trigger.py` | Parses capa-rules GitHub issues → structured `IssueContext` |
 | **RAG Grounding** | `src/grounding.py` | Inverted index over 650+ capa rules; retrieves top-K by namespace/ATT&CK/keyword |
 | **Search Grounding** | `src/search_grounding.py` | Google Search for MSDN API docs, registry paths, ATT&CK technique details |
-| **Generator** | `src/generator.py` | Gemini 2.0 Flash with system prompt + few-shot examples + grounding context |
+| **Generator** | `src/generator.py` | Gemini 3.1 Pro with system prompt + few-shot examples + grounding context |
 | **Validator** | `src/validator.py` | Multi-stage: YAML syntax → schema → `capa lint` → `capafmt` |
 | **Test Runner** | `src/test_runner.py` | Run capa on real samples (local or MalwareBazaar download) |
 | **PR Workflow** | `src/pr_workflow.py` | Confidence-routed PR creation with HITL metadata table |
@@ -379,14 +379,14 @@ capa-rule-agent/
 2. **Issue Parsing** — Extract ATT&CK IDs, sample hashes, decompilation snippets, references, behavioral description
 3. **RAG Grounding** — Index 650+ existing capa rules → retrieve top-K most similar as few-shot examples
 4. **Search Grounding** — Google Search to verify Win32 API names, registry paths, ATT&CK technique details
-5. **Generate** — Prompt Gemini 2.0 Flash with system instruction + RAG examples + search context + issue details
+5. **Generate** — Prompt Gemini 3.1 Pro with system instruction + RAG examples + search context + issue details
 6. **Validate** — Run `capa lint` and `capafmt`; self-correct up to 3 attempts on failure
 7. **Quality Gate** — 5-layer verification: structural → sibling analysis → negative testing → semantic coherence → confidence scoring
 8. **Submit PR** — Route to `rules/` (HIGH) or `nursery/` (MEDIUM) with structured HITL metadata table
 
 ## Tech Stack
 
-- **LLM**: Gemini 2.0 Flash (via `google-genai` SDK)
+- **LLM**: Gemini 3.1 Pro (via `google-genai` SDK)
 - **Agent Framework**: Google ADK with function calling (8 tools)
 - **RAG**: Custom inverted index (namespace, ATT&CK, keyword)
 - **Search**: Google Custom Search API with MSDN/ATT&CK targeting

@@ -535,7 +535,7 @@ TOOL_HANDLERS = {
 @dataclass
 class AgentConfig:
     """Configuration for the ADK agent."""
-    model_name: str = "gemini-2.0-flash"
+    model_name: str = "gemini-3.1-pro"
     api_key: Optional[str] = None
     rules_dir: str = ""
     lint_script: str = ""

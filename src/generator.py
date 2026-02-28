@@ -160,7 +160,7 @@ FEW_SHOT_EXAMPLES = [
 def generate_rule(
     context: IssueContext,
     api_key: Optional[str] = None,
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "gemini-3.1-pro",
     max_retries: int = 3,
     validation_errors: Optional[list[str]] = None,
     grounding_context: Optional[str] = None,
