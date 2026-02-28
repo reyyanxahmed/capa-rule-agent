@@ -149,7 +149,11 @@ class QualityReport:
             self.target_directory = "nursery"
             return
 
-        # Score-based routing
+        # Score-based routing.
+        # Thresholds are educated guesses, not empirically tuned:
+        #   0.8 chosen as "most checks passed" -- needs validation against
+        #   real capa-rules PRs to see if this correlates with merge rate.
+        #   0.7 is a softer bar for nursery/ placement.
         if self.score >= 0.8 and self.had_sample:
             # Only HIGH if we tested against a real sample
             self.confidence = ConfidenceLevel.HIGH
@@ -304,13 +308,19 @@ def analyze_siblings(
     analysis.shared_features = sorted(rule_features & all_sibling_features)
 
     # Over-generalization check: if the rule has very few unique features
-    # and many shared features, it might be too broad
+    # and many shared features, it might be too broad.
+    # 0.2 ratio and >2 shared: chosen by inspection of capa-rules#1100
+    # where the FP rule shared nearly all features with siblings.
+    # Needs tuning against more real FP cases.
     if rule_features:
         unique_ratio = len(analysis.unique_features) / len(rule_features)
         if unique_ratio < 0.2 and len(analysis.shared_features) > 2:
             analysis.over_generalization_risk = True
 
-    # Under-specification check: if siblings are much more specific
+    # Under-specification check: if siblings are much more specific.
+    # 0.3x multiplier is a rough heuristic: "less than a third of the
+    # average sibling's feature count is suspiciously simple."
+    # Not validated at scale yet.
     if rule_features and all_sibling_features:
         avg_sibling_size = len(all_sibling_features) / max(len(siblings), 1)
         if len(rule_features) < avg_sibling_size * 0.3:
@@ -335,7 +345,9 @@ def _find_siblings(rule_index: RuleIndex, namespace: str) -> list[RuleEntry]:
         for idx in indices:
             siblings.append(rule_index.rules[idx])
 
-    return siblings[:20]  # Cap to avoid excessive comparison
+    # Cap at 20 siblings to keep comparison fast. Most namespaces have
+    # fewer than 20 rules; if this becomes a bottleneck we can sample.
+    return siblings[:20]
 
 
 def _extract_feature_set(features: list | dict, depth: int = 0) -> set[str]:
@@ -444,7 +456,10 @@ def run_negative_tests(
     false_positive_matches = []
 
     try:
-        for sample_path in benign_files[:30]:  # Cap at 30 files
+        # Cap at 30 benign files to keep runtime under a few minutes.
+        # capa-testfiles has ~50 benign PEs; 30 gives decent coverage
+        # without blocking the pipeline.
+        for sample_path in benign_files[:30]:
             try:
                 result = subprocess.run(
                     [capa_path, "--rules", rule_path, "--json", str(sample_path)],
@@ -535,12 +550,15 @@ def check_semantic_coherence(
 
     # --- Check 1: Feature tree depth ---
     feature_set = _extract_feature_set(features)
+    # "< 2 features" threshold: a rule with only one feature is almost
+    # certainly too broad for production use. This is the lowest bar;
+    # real capa rules typically have 3-8 features.
     if len(feature_set) < 2:
         checks.append(VerificationCheck(
             layer="semantic",
             check_name="feature_depth",
             status=VerificationStatus.WARNING,
-            detail=f"Rule has only {len(feature_set)} unique feature(s) — "
+            detail=f"Rule has only {len(feature_set)} unique feature(s) -- "
                    f"may be too simple to avoid false positives",
         ))
     else:
