@@ -465,7 +465,7 @@ class TestExpandedPipeline:
             suggested_name="test rule",
             suggested_namespace="persistence/registry",
         )
-        rule_text, result, pr_desc = run_pipeline(
+        rule_text, result, pr_desc, quality_report = run_pipeline(
             ctx,
             max_attempts=1,
             offline=True,

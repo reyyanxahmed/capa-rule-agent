@@ -77,7 +77,7 @@ class TestPipelineIntegration:
 
     def test_offline_pipeline_description(self):
         ctx = parse_description("Detect persistence via ShellServiceObjectDelayLoad registry key")
-        rule_text, result, pr_desc = run_pipeline(
+        rule_text, result, pr_desc, quality_report = run_pipeline(
             ctx,
             max_attempts=1,
             offline=True,
@@ -90,7 +90,7 @@ class TestPipelineIntegration:
 
     def test_offline_pipeline_generates_pr_desc(self):
         ctx = parse_description("Detect service persistence T1543.003")
-        rule_text, result, pr_desc = run_pipeline(
+        rule_text, result, pr_desc, quality_report = run_pipeline(
             ctx,
             max_attempts=1,
             offline=True,
@@ -101,7 +101,7 @@ class TestPipelineIntegration:
 
     def test_offline_pipeline_with_attck(self):
         ctx = parse_description("Detect T1547.001 autostart registry persistence")
-        rule_text, result, pr_desc = run_pipeline(
+        rule_text, result, pr_desc, quality_report = run_pipeline(
             ctx,
             max_attempts=1,
             offline=True,

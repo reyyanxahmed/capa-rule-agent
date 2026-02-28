@@ -34,6 +34,8 @@ from .grounding import RuleIndex, format_grounding_context
 from .search_grounding import build_grounding_context, GroundingContext
 from .test_runner import run_capa_on_sample, run_capa_tests, inject_examples_into_rule, TestResult
 from .pr_workflow import PRContext, create_pull_request, format_pr_description as format_pr_body
+from .quality_gate import run_quality_gate, QualityReport, ConfidenceLevel
+from .backlog import fetch_backlog, process_backlog_batch, BacklogReport, IssueTractability
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,7 @@ def run_pipeline(
 
     # Build grounding context via RAG over existing rules
     grounding_ctx = ""
+    index = None
     if not offline and Path(rules_dir).exists():
         logger.info("Building rule index for RAG grounding...")
         index = RuleIndex()
@@ -127,7 +130,21 @@ def run_pipeline(
             logger.warning(result.error_summary())
             validation_errors = result.errors
 
-    # Step 3: Output
+    # Step 3: Quality Gate (no-sample validation)
+    quality_report = None
+    if not offline:
+        logger.info("Running quality gate...")
+        quality_report = run_quality_gate(
+            best_rule,
+            context=context,
+            rule_index=index,
+            namespace=context.suggested_namespace,
+            validation_result=best_result,
+            sample_tested=False,
+        )
+        logger.info(f"Quality gate: {quality_report.summary()}")
+
+    # Step 4: Output
     if output_path:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_text(best_rule)
@@ -135,8 +152,10 @@ def run_pipeline(
 
     # Generate PR description
     pr_desc = format_pr_description(context, best_rule, best_result)
+    if quality_report:
+        pr_desc += "\n" + quality_report.to_pr_section()
 
-    return best_rule, best_result, pr_desc
+    return best_rule, best_result, pr_desc, quality_report
 
 
 def format_pr_description(
@@ -199,6 +218,7 @@ def run_full_pipeline(
     sample_dir: Optional[str] = None,
     submit_pr: bool = False,
     dry_run: bool = False,
+    testfiles_dir: Optional[str] = None,
 ) -> dict:
     """
     Run the full expanded pipeline with all modules.
@@ -210,10 +230,11 @@ def run_full_pipeline(
     4. Validation — YAML → schema → lint → format
     5. Self-correction — re-prompt on errors (up to max_attempts)
     6. Testing — run capa on samples (if hashes available)
-    7. PR Submission — create Pull Request (if submit_pr=True)
+    7. Quality Gate — multi-layered no-sample validation
+    8. PR Submission — create Pull Request (if submit_pr=True)
 
     Returns:
-        Dict with rule_text, validation, test_results, pr_result
+        Dict with rule_text, validation, test_results, quality_report, pr_result
     """
     lint_script = lint_script or str(DEFAULT_LINT_SCRIPT)
     format_script = format_script or str(DEFAULT_FORMAT_SCRIPT)
@@ -223,6 +244,7 @@ def run_full_pipeline(
         "rule_text": None,
         "validation": None,
         "test_results": [],
+        "quality_report": None,
         "pr_result": None,
         "stages_completed": [],
     }
@@ -334,41 +356,84 @@ def run_full_pipeline(
 
         result["stages_completed"].append("testing")
 
-    # --- Stage 7: PR Submission ---
+    # --- Stage 7: Quality Gate ---
+    sample_tested = bool(context.sample_hashes and any(
+        tr.get("matched") for tr in result["test_results"]
+    ))
+    logger.info("Stage 7: Running quality gate...")
+    qr = run_quality_gate(
+        best_rule,
+        context=context,
+        rule_index=index if Path(rules_dir).exists() else None,
+        namespace=context.suggested_namespace or "nursery",
+        testfiles_dir=testfiles_dir,
+        capa_path=capa_path,
+        validation_result=best_validation,
+        sample_tested=sample_tested,
+    )
+    result["quality_report"] = {
+        "confidence": qr.confidence.value,
+        "score": qr.score,
+        "target_directory": qr.target_directory,
+        "passed": qr.passed_count,
+        "failed": qr.failed_count,
+        "warnings": qr.warning_count,
+        "skipped": qr.skipped_count,
+        "checks": [
+            {
+                "layer": c.layer,
+                "check": c.check_name,
+                "status": c.status.value,
+                "detail": c.detail,
+            }
+            for c in qr.checks
+        ],
+    }
+    result["stages_completed"].append("quality_gate")
+    logger.info(f"  Quality gate: {qr.summary()}")
+
+    # --- Stage 8: PR Submission ---
+    # Use quality gate to determine target directory
+    target_dir = qr.target_directory or "nursery"
+
     if submit_pr and best_validation.is_valid:
-        logger.info("Stage 6: Creating Pull Request...")
+        # Only auto-submit if quality gate didn't REJECT
+        if qr.confidence == ConfidenceLevel.REJECT:
+            logger.warning("  Quality gate REJECTED rule — skipping PR submission")
+        else:
+            logger.info(f"Stage 8: Creating Pull Request (target: {target_dir}/)...")
 
-        # Parse issue number if available
-        issue_number = None
-        for ref in context.references:
-            import re
-            match = re.search(r"/issues/(\d+)", ref)
-            if match:
-                issue_number = int(match.group(1))
-                break
+            # Parse issue number if available
+            issue_number = None
+            for ref in context.references:
+                import re
+                match = re.search(r"/issues/(\d+)", ref)
+                if match:
+                    issue_number = int(match.group(1))
+                    break
 
-        pr_ctx = PRContext(
-            rule_text=best_rule,
-            rule_name=context.suggested_name or context.title.lower()[:60],
-            namespace=context.suggested_namespace or "nursery",
-            issue_number=issue_number,
-            attck_ids=context.attck_ids,
-            validation_result=best_validation,
-            test_results="\n".join(
-                f"  {tr.sample_hash[:16]}... → {'MATCH' if tr.matched else 'NO MATCH'}"
-                for tr in (test_results if context.sample_hashes else [])
-            ) or None,
-            references=context.references,
-            sample_hashes=context.sample_hashes,
-        )
+            pr_ctx = PRContext(
+                rule_text=best_rule,
+                rule_name=context.suggested_name or context.title.lower()[:60],
+                namespace=context.suggested_namespace or target_dir,
+                issue_number=issue_number,
+                attck_ids=context.attck_ids,
+                validation_result=best_validation,
+                test_results="\n".join(
+                    f"  {tr.sample_hash[:16]}... → {'MATCH' if tr.matched else 'NO MATCH'}"
+                    for tr in (test_results if context.sample_hashes else [])
+                ) or None,
+                references=context.references,
+                sample_hashes=context.sample_hashes,
+            )
 
-        pr_result = create_pull_request(
-            pr_ctx,
-            rules_repo_dir=rules_dir,
-            dry_run=dry_run,
-        )
-        result["pr_result"] = pr_result
-        result["stages_completed"].append("pr_submission")
+            pr_result = create_pull_request(
+                pr_ctx,
+                rules_repo_dir=rules_dir,
+                dry_run=dry_run,
+            )
+            result["pr_result"] = pr_result
+            result["stages_completed"].append("pr_submission")
 
     # Write output
     if output_path:
@@ -399,6 +464,17 @@ def main():
         "--scan-feeds",
         action="store_true",
         help="Run proactive trigger: scan threat intel feeds for coverage gaps",
+    )
+    input_group.add_argument(
+        "--process-backlog",
+        action="store_true",
+        help="Fetch and classify the capa-rules issue backlog",
+    )
+    input_group.add_argument(
+        "--backlog-batch",
+        type=int,
+        default=0,
+        help="Process N issues from the backlog through the pipeline",
     )
 
     # Output
@@ -464,6 +540,10 @@ def main():
         help="Directory containing malware samples for testing",
     )
     config_group.add_argument(
+        "--testfiles-dir",
+        help="Path to capa-testfiles (benign binaries for false positive testing)",
+    )
+    config_group.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose logging",
@@ -491,6 +571,49 @@ def main():
         print(f"{'='*60}")
         for gap in gaps:
             print(f"  {gap.summary()}")
+        return 0
+
+    # --- Backlog processing mode ---
+    if args.process_backlog or args.backlog_batch > 0:
+        logger.info("Fetching capa-rules issue backlog...")
+        report = fetch_backlog(max_issues=100)
+        print(report.summary())
+
+        if args.backlog_batch > 0:
+            batch = process_backlog_batch(
+                report,
+                max_batch=args.backlog_batch,
+                include_low=True,
+            )
+            print(f"\n{'='*60}")
+            print(f"PROCESSING BATCH ({len(batch)} issues)")
+            print(f"{'='*60}")
+            for c in batch:
+                print(f"  {c.summary()}")
+
+                if c.context and not args.offline and os.environ.get("GOOGLE_API_KEY"):
+                    print(f"  → Running pipeline for #{c.issue_number}...")
+                    try:
+                        pipeline_result = run_full_pipeline(
+                            c.context,
+                            max_attempts=args.max_attempts,
+                            lint_script=args.lint_script,
+                            format_script=args.format_script,
+                            rules_dir=args.rules_dir,
+                            capa_path=args.capa_path,
+                            sample_dir=args.sample_dir,
+                            submit_pr=args.submit_pr,
+                            dry_run=args.dry_run,
+                            testfiles_dir=args.testfiles_dir,
+                        )
+                        qr = pipeline_result.get("quality_report", {})
+                        print(f"    Confidence: {qr.get('confidence', 'N/A')} "
+                              f"(score: {qr.get('score', 0):.0%})")
+                        print(f"    Target: {qr.get('target_directory', 'nursery')}/")
+                    except Exception as e:
+                        logger.error(f"  Pipeline failed for #{c.issue_number}: {e}")
+                print()
+
         return 0
 
     # --- ADK Agent mode ---
@@ -539,7 +662,7 @@ def main():
 
     if args.offline:
         # Lightweight pipeline (no LLM, no search)
-        rule_text, result, pr_desc = run_pipeline(
+        rule_text, result, pr_desc, quality_report = run_pipeline(
             context,
             max_attempts=args.max_attempts,
             offline=True,
@@ -561,6 +684,7 @@ def main():
             sample_dir=args.sample_dir,
             submit_pr=args.submit_pr,
             dry_run=args.dry_run,
+            testfiles_dir=args.testfiles_dir,
         )
         rule_text = pipeline_result["rule_text"] or ""
         result = ValidationResult(
@@ -571,6 +695,19 @@ def main():
         # Print stages completed
         stages = pipeline_result.get("stages_completed", [])
         logger.info(f"Stages completed: {' → '.join(stages)}")
+
+        # Print quality gate results
+        qr = pipeline_result.get("quality_report")
+        if qr:
+            print("\n" + "=" * 60)
+            print("QUALITY GATE")
+            print("=" * 60)
+            print(f"  Confidence: {qr['confidence'].upper()}")
+            print(f"  Score: {qr['score']:.0%}")
+            print(f"  Target: {qr['target_directory']}/")
+            for check in qr.get("checks", []):
+                icon = {"passed": "✅", "failed": "❌", "skipped": "⏭️", "warning": "⚠️"}.get(check["status"], "?")
+                print(f"  {icon} [{check['layer']}] {check['check']}: {check['detail']}")
 
         # Print test results if any
         if pipeline_result.get("test_results"):

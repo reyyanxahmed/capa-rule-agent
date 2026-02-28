@@ -29,6 +29,7 @@ from .validator import validate_rule, ValidationResult
 from .search_grounding import search_api_docs, search_threat_intel
 from .pr_workflow import create_pull_request, PRContext
 from .test_runner import run_capa_on_sample, TestResult
+from .quality_gate import run_quality_gate, QualityReport, ConfidenceLevel
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,8 @@ You have access to these tools:
 4. **generate_rule** — Generate a capa YAML rule from issue context + grounding
 5. **validate_rule** — Run YAML syntax check → schema validation → capa linter → capa formatter
 6. **run_capa_test** — Run capa against a real malware sample to verify the rule matches
-7. **create_pr** — Package the validated rule and submit it as a Pull Request to mandiant/capa-rules
+7. **run_quality_gate** — Multi-layered validation for when no sample is available (sibling analysis, negative testing, semantic coherence)
+8. **create_pr** — Package the validated rule and submit it as a Pull Request to mandiant/capa-rules
 
 ## Workflow
 
@@ -60,10 +62,13 @@ For each issue/request, follow this reasoning loop:
 2. **Research** — Search for similar existing rules AND API documentation for referenced functions
 3. **Generate** — Write a capa rule grounded in real examples and verified API names
 4. **Validate** — Run the full linter pipeline. If errors → fix and re-validate (up to 3 attempts)
-5. **Test** — If a sample hash is available, run capa against it to verify detection
-6. **Submit** — Create a formatted PR with rule, test results, and coverage summary
+5. **Quality Gate** — If no sample available, run the no-sample quality gate (sibling analysis, semantic checks)
+6. **Test** — If a sample hash is available, run capa against it to verify detection
+7. **Submit** — Create a formatted PR with rule, quality report, and coverage summary
 
 Never submit a rule that fails validation. If you cannot fix all errors, flag it for human review.
+Always run the quality gate when no sample is available — this ensures the HITL reviewer knows exactly
+what was and wasn't verified.
 """
 
 
@@ -306,6 +311,65 @@ def tool_create_pr(
 # Tool schema declarations for ADK (function declarations)
 # ---------------------------------------------------------------------------
 
+def tool_run_quality_gate(
+    rule_text: str,
+    namespace: str = "",
+    rules_dir: str = "",
+    sample_tested: bool = False,
+) -> dict:
+    """
+    ADK Tool: Run the no-sample quality gate on a generated rule.
+
+    Multi-layered validation that checks sibling rule analysis,
+    semantic coherence, and negative testing — the key challenge
+    identified by mentors for issues without reference samples.
+
+    Args:
+        rule_text: The YAML rule to assess
+        namespace: Rule's target namespace
+        rules_dir: Path to capa-rules for sibling analysis
+        sample_tested: Whether the rule was already tested on a sample
+
+    Returns:
+        Dict with confidence level, score, target directory, and check details
+    """
+    try:
+        rule_index = None
+        if rules_dir:
+            rule_index = RuleIndex()
+            rule_index.index_directory(rules_dir)
+
+        report = run_quality_gate(
+            rule_text,
+            rule_index=rule_index,
+            namespace=namespace or None,
+            sample_tested=sample_tested,
+        )
+        return ToolResult(
+            success=True,
+            data={
+                "confidence": report.confidence.value,
+                "score": report.score,
+                "target_directory": report.target_directory,
+                "passed": report.passed_count,
+                "failed": report.failed_count,
+                "warnings": report.warning_count,
+                "checks": [
+                    {
+                        "layer": c.layer,
+                        "check": c.check_name,
+                        "status": c.status.value,
+                        "detail": c.detail,
+                    }
+                    for c in report.checks
+                ],
+                "pr_section": report.to_pr_section(),
+            },
+        ).to_dict()
+    except Exception as e:
+        return ToolResult(success=False, error=str(e)).to_dict()
+
+
 TOOL_DECLARATIONS = [
     types.FunctionDeclaration(
         name="parse_issue",
@@ -428,6 +492,28 @@ TOOL_DECLARATIONS = [
             required=["rule_text", "rule_name", "namespace"],
         ),
     ),
+    types.FunctionDeclaration(
+        name="run_quality_gate",
+        description="Run the multi-layered no-sample quality gate. Checks sibling rule analysis, semantic coherence, and negative testing. Returns confidence level and structured HITL metadata showing what was and wasn't verified.",
+        parameters=types.Schema(
+            type="OBJECT",
+            properties={
+                "rule_text": types.Schema(
+                    type="STRING",
+                    description="The YAML rule to assess",
+                ),
+                "namespace": types.Schema(
+                    type="STRING",
+                    description="Rule's target namespace (e.g. 'persistence/service')",
+                ),
+                "sample_tested": types.Schema(
+                    type="BOOLEAN",
+                    description="Whether the rule was already tested on a real sample",
+                ),
+            },
+            required=["rule_text"],
+        ),
+    ),
 ]
 
 # Map tool names to handler functions
@@ -438,6 +524,7 @@ TOOL_HANDLERS = {
     "validate_rule": lambda args: tool_validate_rule(**args),
     "run_capa_test": lambda args: tool_run_capa_test(**args),
     "create_pr": lambda args: tool_create_pr(**args),
+    "run_quality_gate": lambda args: tool_run_quality_gate(**args),
 }
 
 
@@ -600,6 +687,8 @@ class CapaRuleAgent:
                     tool_args["rules_dir"] = self.config.rules_dir
                     tool_args["lint_script"] = self.config.lint_script
                     tool_args["format_script"] = self.config.format_script
+                elif tool_name == "run_quality_gate":
+                    tool_args["rules_dir"] = self.config.rules_dir
 
                 # Execute the tool
                 handler = TOOL_HANDLERS.get(tool_name)
