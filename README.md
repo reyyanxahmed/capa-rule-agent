@@ -1,21 +1,21 @@
 # capa Rule Generation Agent
 
-PoC for GSoC 2026 — Mandiant FLARE's "Automated Rule Generation Agent" project. Takes a [capa-rules](https://github.com/mandiant/capa-rules) GitHub issue, generates a candidate rule using Gemini 3.1 Pro with RAG grounding from the existing rule corpus, validates it against capa's linter/formatter, and runs it through a quality gate that scores confidence even when no reference sample is available. Issue parsing, RAG grounding, LLM generation, validation, and the quality gate are implemented and tested. ADK agent orchestration, PR submission, and search grounding are scaffolded but not yet end-to-end functional.
+PoC for GSoC 2026, Mandiant FLARE's "Automated Rule Generation Agent" project. Takes a [capa-rules](https://github.com/mandiant/capa-rules) GitHub issue, generates a candidate rule using Gemini 3.1 Pro with RAG grounding from the existing rule corpus, validates it against capa's linter/formatter, and runs it through a quality gate that scores confidence even when no reference sample is available. Issue parsing, RAG grounding, LLM generation, validation, and the quality gate are implemented and tested. ADK agent orchestration, PR submission, and search grounding are scaffolded but not yet end-to-end functional.
 
 ## Status
 
-- [x] Issue parsing — extracts ATT&CK IDs, sample hashes, decompilation, references from GitHub issues
-- [x] RAG grounding — inverted index over 650+ capa rules, top-K retrieval by namespace/ATT&CK/keyword
-- [x] LLM generation — Gemini 3.1 Pro with system prompt, few-shot examples from RAG, grounding context
-- [x] Validation loop — YAML syntax, schema check, `capa lint`, `capafmt`, self-correction up to 3 attempts
-- [x] Quality gate — 5-layer scoring (structural, sibling analysis, negative testing, semantic coherence, sample testing)
-- [x] Backlog processor — fetches/classifies open issues by tractability (HIGH/MEDIUM/LOW/SKIP)
-- [x] Offline mode — template generation without API calls, useful for testing
-- [ ] ADK agent mode — tool declarations exist, orchestration loop scaffolded, not tested end-to-end
-- [ ] PR submission — `pr_workflow.py` scaffolded, not tested against real repos
-- [ ] Search grounding — Google Search for API docs/ATT&CK verification, stubbed
-- [ ] Integration with capa CI — planned
-- [ ] Full backlog automation — planned
+- [x] Issue parsing: extracts ATT&CK IDs, sample hashes, decompilation, references from GitHub issues
+- [x] RAG grounding: inverted index over 650+ capa rules, top-K retrieval by namespace/ATT&CK/keyword
+- [x] LLM generation: Gemini 3.1 Pro with system prompt, few-shot examples from RAG, grounding context
+- [x] Validation loop: YAML syntax, schema check, `capa lint`, `capafmt`, self-correction up to 3 attempts
+- [x] Quality gate: 5-layer scoring (structural, sibling analysis, negative testing, semantic coherence, sample testing)
+- [x] Backlog processor: fetches/classifies open issues by tractability (HIGH/MEDIUM/LOW/SKIP)
+- [x] Offline mode: template generation without API calls, useful for testing
+- [ ] ADK agent mode: tool declarations exist, orchestration loop scaffolded, not tested end-to-end
+- [ ] PR submission: `pr_workflow.py` scaffolded, not tested against real repos
+- [ ] Search grounding: Google Search for API docs/ATT&CK verification, stubbed
+- [ ] Integration with capa CI: planned
+- [ ] Full backlog automation: planned
 
 ## Architecture
 
@@ -140,10 +140,10 @@ capa-rule-agent/
 ├── src/
 │   ├── __init__.py
 │   ├── __main__.py            # CLI entry: python -m src
-│   ├── pipeline.py             # Orchestrator — offline, standard, agent, backlog modes
-│   ├── backlog.py              # Issue backlog processor — fetch, classify, prioritize
-│   ├── quality_gate.py         # 5-layer quality gate — confidence scoring + HITL metadata
-│   ├── trigger.py              # Issue parser — GitHub issues → IssueContext
+│   ├── pipeline.py             # Orchestrator: offline, standard, agent, backlog modes
+│   ├── backlog.py              # Issue backlog processor: fetch, classify, prioritize
+│   ├── quality_gate.py         # 5-layer quality gate: confidence scoring + HITL metadata
+│   ├── trigger.py              # Issue parser: GitHub issues to IssueContext
 │   ├── grounding.py            # RAG index over 650+ capa rules
 │   ├── search_grounding.py     # Google Search for API/ATT&CK verification
 │   ├── generator.py            # Gemini-powered rule generation
