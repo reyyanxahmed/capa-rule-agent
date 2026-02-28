@@ -35,15 +35,15 @@ jobs:
           python -c "
           import yaml, sys, pathlib
           errors = 0
-          for p in pathlib.Path('examples').glob('*.yml'):
+          for p in pathlib.Path('examples').rglob('*.yml'):
               try:
                   data = yaml.safe_load(p.read_text())
                   assert 'rule' in data, f'{p}: missing top-level rule key'
                   assert 'meta' in data['rule'], f'{p}: missing meta section'
                   assert 'features' in data['rule'], f'{p}: missing features section'
-                  print(f'  ✓ {p.name}')
+                  print(f'  ✓ {p}')
               except Exception as e:
-                  print(f'  ✗ {p.name}: {e}')
+                  print(f'  ✗ {p}: {e}')
                   errors += 1
           sys.exit(errors)
           "
