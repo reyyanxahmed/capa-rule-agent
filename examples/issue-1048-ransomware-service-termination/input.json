@@ -1,0 +1,12 @@
+{
+  "source": "https://github.com/mandiant/capa-rules/issues/1048",
+  "title": "detect opening of services often referenced by ransomware",
+  "description": "Ransomware attempts to open and stop specific services during execution (backup, recovery, database services). Rule should combine Windows API calls (OpenService, ControlService) with a list of targeted service names like vss, sql, sophos, backup, etc.",
+  "attck_ids": ["T1489"],
+  "sample_hashes": [],
+  "has_decompilation": false,
+  "suggested_namespace": "impact/service-stop",
+  "references": [
+    "https://github.com/netskopeoss/NetskopeThreatLabsIOCs/blob/10b21b2fa5f280ea414fdbb47ea74c0386ab9587/Malware/BlackMatter/IOCs/README.md?plain=1#L58-L94"
+  ]
+}

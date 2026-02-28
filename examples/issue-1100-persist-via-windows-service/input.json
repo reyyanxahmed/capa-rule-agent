@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/mandiant/capa-rules/issues/1100",
+  "title": "persist via Windows service",
+  "description": "False positive: function modifies NetBT parameters (NetbiosOptions) via RegSetValueExA under SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces. Does not create or modify a service binary path for persistence.",
+  "attck_ids": ["T1543.003"],
+  "sample_hashes": ["41d097e47778252aec073666502f9ab7eda2e47c6800f529064128dff186f39d"],
+  "has_decompilation": true,
+  "suggested_namespace": "persistence/service"
+}
