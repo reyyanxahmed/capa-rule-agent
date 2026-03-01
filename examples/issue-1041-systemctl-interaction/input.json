@@ -1,0 +1,15 @@
+{
+  "issue_url": "https://github.com/mandiant/capa-rules/issues/1041",
+  "issue_number": 1041,
+  "title": "detect journalctl/systemctl/systemd interactions on Linux",
+  "attck_ids": [
+    "T1562.012",
+    "T1543.002",
+    "T1562.001",
+    "T1082"
+  ],
+  "labels": [
+    "rule idea"
+  ],
+  "has_sample": true
+}

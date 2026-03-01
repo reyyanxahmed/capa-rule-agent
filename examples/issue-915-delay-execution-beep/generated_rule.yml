@@ -1,0 +1,22 @@
+rule:
+  meta:
+    name: delay execution via Beep
+    namespace: anti-analysis/anti-vm/vm-detection
+    authors:
+      - gsoc-agent@mandiant.com
+    scopes:
+      static: function
+      dynamic: span of calls
+    att&ck:
+      - Defense Evasion::Virtualization/Sandbox Evasion::Time Based Evasion [T1497.003]
+    mbc:
+      - Anti-Behavioral Analysis::Dynamic Analysis Evasion::Delayed Execution [B0003.003]
+    references:
+      - https://learn.microsoft.com/en-us/windows/win32/api/utilapiset/nf-utilapiset-beep
+      - https://thehackernews.com/2023/02/experts-warn-of-beep-new-evasive.html
+      - https://securityliterate.com/beeeeeeeeep-how-malware-uses-the-beep-winapi-function-for-anti-analysis/
+  features:
+    - or:
+      - api: kernel32.Beep
+      - api: utilapiset.Beep
+      - api: Beep

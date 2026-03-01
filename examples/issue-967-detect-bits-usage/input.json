@@ -1,0 +1,13 @@
+{
+  "issue_url": "https://github.com/mandiant/capa-rules/issues/967",
+  "issue_number": 967,
+  "title": "detect BITS usage in general",
+  "attck_ids": [
+    "T1197"
+  ],
+  "labels": [
+    "good first issue",
+    "rule idea"
+  ],
+  "has_sample": false
+}

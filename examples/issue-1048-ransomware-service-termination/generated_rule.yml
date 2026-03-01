@@ -1,16 +1,30 @@
 rule:
   meta:
-    name: opening of services often referenced by ransomware using openservice t148
+    name: opening of services often referenced by ransomware
     namespace: persistence/service
     authors:
       - gsoc-agent@mandiant.com
     scopes:
       static: function
-      dynamic: span of calls
+      dynamic: call
     att&ck:
-      - T1489
+      - Impact::Inhibit System Recovery [T1490]
+      - Defense Evasion::Impair Defenses::Disable or Modify Tools [T1562.001]
+    references:
+      - https://github.com/netskopeoss/NetskopeThreatLabsIOCs/blob/10b21b2fa5f280ea414fdbb47ea74c0386ab9587/Malware/BlackMatter/IOCs/README.md?plain=1#L58-L94
   features:
     - and:
+      - api: advapi32.OpenService
       - or:
-        - match: set registry value
-      - string: "TODO: add detection logic"
+        - string: /vss|veeam|backup|macrium|stc_raw_agent|pdvss|VSNAPVSS/i
+          description: backup and recovery services
+        - string: /sql|oracle|msexchange|w3svc|ntds|msmdmq/i
+          description: database and enterprise services
+        - string: /sophos|DefWatch|ccEvtMgr|ccSetMgr|SavRoam|RTVscan|zhudongfangyu/i
+          description: security and antivirus services
+        - string: /GxVss|GxBlr|GxFWD|GxCVD|GxCIMgr/i
+          description: Commvault services
+        - string: /QBFCService|QBIDPService|Intuit\.QuickBooks\.FCS|QBCFMonitorService/i
+          description: QuickBooks services
+        - string: /YooBackup|YooIT|memtas|mepocs|svc\$/i
+          description: other targeted services

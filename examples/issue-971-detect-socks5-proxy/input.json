@@ -1,0 +1,14 @@
+{
+  "issue_url": "https://github.com/mandiant/capa-rules/issues/971",
+  "issue_number": 971,
+  "title": "detect socks5 proxy capabilities",
+  "attck_ids": [
+    "T1090"
+  ],
+  "labels": [
+    "good first issue",
+    "help wanted",
+    "rule idea"
+  ],
+  "has_sample": false
+}

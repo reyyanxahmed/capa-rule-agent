@@ -1,16 +1,56 @@
 rule:
   meta:
-    name: mouse movement analysis for sandbox evasion t1497.002
-    namespace: nursery
+    name: analyze mouse movement for sandbox evasion
+    namespace: anti-analysis/anti-vm/vm-detection
     authors:
+      - tevajdr@gmail.com
       - gsoc-agent@mandiant.com
+    description: Identifies code that analyzes mouse movement patterns to detect non-human/sandbox behavior
     scopes:
       static: function
-      dynamic: span of calls
+      dynamic: unsupported
     att&ck:
-      - T1497.002
+      - Defense Evasion::Virtualization/Sandbox Evasion::User Activity Based Checks [T1497.002]
+    mbc:
+      - Anti-Behavioral Analysis::Virtual Machine Detection::Human User Check [B0009.012]
+    references:
+      - https://evasions.checkpoint.com/src/Evasions/techniques/human-like-behavior.html#check-mouse-movement
+      - https://www.joesecurity.org/blog/5852460122427342172
+      - https://unprotect.it/technique/checking-mouse-activity/
+    examples:
+      - 5589857ba6ad8cd0893f4fbba774382222a573d20a2dd71b26b3b4d64f671301:0x401594
   features:
-    - and:
-      - or:
-        - match: set registry value
-      - string: "TODO: add detection logic"
+    - or:
+      - and:
+        - description: advanced mouse pattern analysis with vector/angle calculations
+        - api: user32.GetCursorPos
+        - or:
+          - api: winmm.timeGetTime
+          - api: kernel32.Sleep
+          - api: kernel32.GetTickCount
+          - api: kernel32.GetTickCount64
+          - api: kernel32.QueryPerformanceCounter
+        - or:
+          - api: msvcrt.acos
+          - api: msvcrt.sqrt
+          - api: msvcrt.atan2
+          - api: msvcrt.pow
+          - api: msvcrt.sin
+          - api: msvcrt.cos
+      - and:
+        - description: call to cursor position in a loop
+        - api: user32.GetCursorPos
+        - characteristic: loop
+        - or:
+          - api: winmm.timeGetTime
+          - api: kernel32.Sleep
+          - api: kernel32.GetTickCount
+          - api: kernel32.GetTickCount64
+          - api: kernel32.QueryPerformanceCounter
+      - and:
+        - description: mouse movement with button/event correlation check
+        - api: user32.GetCursorPos
+        - characteristic: loop
+        - or:
+          - api: user32.GetAsyncKeyState
+          - api: user32.GetKeyState

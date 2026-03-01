@@ -1,0 +1,12 @@
+{
+  "issue_url": "https://github.com/mandiant/capa-rules/issues/915",
+  "issue_number": 915,
+  "title": "delay execution: add Beep WinAPI",
+  "attck_ids": [
+    "T1497.003"
+  ],
+  "labels": [
+    "rule idea"
+  ],
+  "has_sample": false
+}

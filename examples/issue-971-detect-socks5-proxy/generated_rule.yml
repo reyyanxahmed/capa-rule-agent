@@ -1,0 +1,35 @@
+rule:
+  meta:
+    name: socks5 proxy capabilities
+    namespace: communication/proxy/socks
+    authors:
+      - gsoc-agent@mandiant.com
+    scopes:
+      static: function
+      dynamic: span of calls
+    att&ck:
+      - Command and Control::Proxy [T1090]
+    references:
+      - https://en.wikipedia.org/wiki/SOCKS
+      - https://en.wikipedia.org/wiki/Network_byte_order
+  features:
+    - and:
+      - number: 5 = SOCKS5 version
+      - number: 1 = SOCKS5 CMD CONNECT / ATYP IPv4
+      - number: 2 = SOCKS5 CMD BIND
+      - number: 3 = SOCKS5 CMD UDP ASSOCIATE / ATYP DOMAINNAME
+      - number: 4 = SOCKS5 ATYP IPv6
+      - or:
+        - match: receive data
+        - match: send data
+        - api: recv
+        - api: ws2_32.recv
+        - api: recvfrom
+        - api: ws2_32.recvfrom
+        - api: send
+        - api: ws2_32.send
+        - api: sendto
+        - api: ws2_32.sendto
+      - optional:
+        - number: 0 = SOCKS5 RSV
+        - number: 1080 = SOCKS default port

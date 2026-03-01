@@ -1,10 +1,10 @@
-# Quality Gate Report: #1048
+# Quality Gate Report: #971
 
 | Metric | Value |
 |--------|-------|
-| Confidence | **MEDIUM** |
-| Score | 73% |
-| Passed | 8 |
+| Confidence | **LOW** |
+| Score | 67% |
+| Passed | 6 |
 | Failed | 0 |
 | Warnings | 2 |
 | Skipped | 1 |

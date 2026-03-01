@@ -1,0 +1,39 @@
+rule:
+  meta:
+    name: interact with systemd
+    namespace: host-interaction/service/systemd
+    authors:
+      - gsoc-agent@mandiant.com
+    scopes:
+      static: function
+      dynamic: span of calls
+    att&ck:
+      - Defense Evasion::Impair Defenses::Disable or Modify Tools [T1562.001]
+      - Defense Evasion::Impair Defenses::Disable or Modify Linux Audit System [T1562.012]
+      - Persistence::Create or Modify System Process::Systemd Service [T1543.002]
+      - Discovery::System Information Discovery [T1082]
+    examples:
+      - 6a5bda892608df18c543036b71f46dd2ae533c85256c40dffeb23ea78c70f021
+  features:
+    - and:
+      - os: linux
+      - or:
+        - string: /systemctl\s+(daemon-reload|start|stop|enable|disable|restart|status)/
+        - string: /journalctl\s+(--rotate|--vacuum-time|--vacuum-files|--no-pager|-xe|-u)/
+        - and:
+          - string: "systemctl"
+          - or:
+            - string: "daemon-reload"
+            - string: "enable"
+            - string: "disable"
+            - string: "start"
+            - string: "stop"
+            - string: "restart"
+            - string: "status"
+        - and:
+          - string: "journalctl"
+          - or:
+            - string: "--rotate"
+            - string: "--vacuum-time"
+            - string: "--vacuum-files"
+            - string: "--no-pager"

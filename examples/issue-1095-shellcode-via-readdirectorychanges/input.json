@@ -1,0 +1,12 @@
+{
+  "issue_url": "https://github.com/mandiant/capa-rules/issues/1095",
+  "issue_number": 1095,
+  "title": "Document shellcode execution via ReadDirectoryChanges",
+  "attck_ids": [
+    "T1620"
+  ],
+  "labels": [
+    "rule idea"
+  ],
+  "has_sample": false
+}

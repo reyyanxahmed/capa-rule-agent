@@ -1,0 +1,30 @@
+rule:
+  meta:
+    name: execute shellcode via readdirectorychanges
+    namespace: load-code/shellcode
+    authors:
+      - gsoc-agent@mandiant.com
+    description: Detects shellcode execution by abusing the lpCompletionRoutine parameter of ReadDirectoryChanges APIs
+    scopes:
+      static: function
+      dynamic: span of calls
+    att&ck:
+      - Defense Evasion::Reflective Code Loading [T1620]
+    mbc:
+      - Defense Evasion::Hijack Execution Flow::Abuse Windows Function Calls [F0015.006]
+    references:
+      - https://osandamalith.com/2025/09/25/executing-shellcode-with-readdirectorychangess-hidden-callback/
+      - https://github.com/OsandaMalith/CallbackShellcode/blob/main/ReadDirectoryChanges.c
+  features:
+    - and:
+      - match: allocate or change RWX memory
+      - or:
+        - api: ReadDirectoryChangesW
+        - api: ReadDirectoryChangesExW
+      - optional:
+        - or:
+          - api: SleepEx
+          - api: WaitForSingleObjectEx
+          - api: WaitForMultipleObjectsEx
+          - api: MsgWaitForMultipleObjectsEx
+          - api: SignalObjectAndWait

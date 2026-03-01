@@ -160,7 +160,7 @@ FEW_SHOT_EXAMPLES = [
 def generate_rule(
     context: IssueContext,
     api_key: Optional[str] = None,
-    model_name: str = "gemini-3.1-pro",
+    model_name: str = "gemini-3.1-pro-preview",
     max_retries: int = 3,
     validation_errors: Optional[list[str]] = None,
     grounding_context: Optional[str] = None,
@@ -218,17 +218,41 @@ def generate_rule(
 
     logger.info(f"Generating rule with {model_name} (prompt length: {len(prompt)} chars)")
 
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            temperature=0.2,
-            max_output_tokens=2048,
-        ),
-    )
+    import time
+    for api_attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.2,
+                    max_output_tokens=8192,
+                ),
+            )
+            break
+        except Exception as e:
+            if api_attempt < 2:
+                wait = 30 * (api_attempt + 1)
+                logger.warning(f"API error ({e}), retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                logger.error(f"API failed after 3 attempts: {e}")
+                return "rule:\n  meta:\n    name: generation-failed\n  features:\n    - api: kernel32.CreateFile\n"
 
-    raw_output = response.text.strip()
+    # Extract text from response, handling thinking models where .text may be None
+    raw_output = response.text
+    if raw_output is None:
+        # For thinking models, iterate through parts to find the model output
+        raw_output = ""
+        if response.candidates:
+            for part in response.candidates[0].content.parts:
+                if part.text and not getattr(part, "thought", False):
+                    raw_output += part.text
+        if not raw_output:
+            logger.error("Model returned empty response")
+            return "rule:\n  meta:\n    name: generation-failed\n  features:\n    - api: kernel32.CreateFile\n"
+    raw_output = raw_output.strip()
 
     # Clean up output — remove code fences if present
     if raw_output.startswith("```"):

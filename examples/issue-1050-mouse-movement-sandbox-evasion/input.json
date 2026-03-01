@@ -1,14 +1,12 @@
 {
-  "source": "https://github.com/mandiant/capa-rules/issues/1050",
+  "issue_url": "https://github.com/mandiant/capa-rules/issues/1050",
+  "issue_number": 1050,
   "title": "detect mouse movement analysis for sandbox evasion",
-  "description": "Detect advanced mouse movement analysis used by malware to identify sandbox environments through behavioral analysis. Includes vector mathematics (acos, sqrt, atan2), loop-based cursor sampling, and mouse-click correlation via GetAsyncKeyState.",
-  "attck_ids": ["T1497.002"],
-  "sample_hashes": ["5589857ba6ad8cd0893f4fbba774382222a573d20a2dd71b26b3b4d64f671301"],
-  "has_decompilation": false,
-  "suggested_namespace": "anti-analysis/anti-vm/vm-detection",
-  "references": [
-    "https://evasions.checkpoint.com/src/Evasions/techniques/human-like-behavior.html#check-mouse-movement",
-    "https://www.joesecurity.org/blog/5852460122427342172",
-    "https://unprotect.it/technique/checking-mouse-activity/"
-  ]
+  "attck_ids": [
+    "T1497.002"
+  ],
+  "labels": [
+    "rule idea"
+  ],
+  "has_sample": true
 }

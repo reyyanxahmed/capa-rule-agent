@@ -1,6 +1,6 @@
 rule:
   meta:
-    name: persistence via windows service creation using createservice or modifying
+    name: persist via windows service
     namespace: persistence/service
     authors:
       - gsoc-agent@mandiant.com
@@ -9,8 +9,43 @@ rule:
       dynamic: span of calls
     att&ck:
       - Persistence::Create or Modify System Process::Windows Service [T1543.003]
+      - Execution::System Services::Service Execution [T1569.002]
+    examples:
+      - Practical Malware Analysis Lab 03-02.dll_:0x10004706
+      - 9f012d7e3ae8f62370278e372691eb73b878fe2280b6083e1be637b278021855:0x40113A
   features:
-    - and:
-      - or:
+    - or:
+      - and:
+        - or:
+          - basic block:
+            - and:
+              - number: 2 = SERVICE_AUTO_START
+              - api: advapi32.CreateService
+          - call:
+            - and:
+              - number: 2 = SERVICE_AUTO_START
+              - api: advapi32.CreateService
+        - optional:
+          - or:
+            - api: advapi32.OpenService
+            - api: advapi32.StartService
+      - and:
+        - match: host-interaction/process/create
+        - or:
+          - and:
+            - string: /^sc(|\.exe)$/i
+            - string: /create /i
+          - string: /^sc(|\.exe) create/i
+          - string: /New-Service /i
+      - and:
         - match: set registry value
-      - string: "TODO: add detection logic"
+        - string: /System\\(ControlSet\d{3}|CurrentControlSet)\\Services/i
+        - or:
+          - string: /ImagePath/i
+            description: service binary path
+          - string: /ServiceDll/i
+            description: svchost-hosted service DLL
+          - string: /FailureCommand/i
+            description: command run on service failure
+          - string: /Start/i
+            description: service start type

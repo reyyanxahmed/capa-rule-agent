@@ -1,12 +1,12 @@
-# Quality Gate Report: #1048
+# Quality Gate Report: #967
 
 | Metric | Value |
 |--------|-------|
 | Confidence | **MEDIUM** |
-| Score | 73% |
-| Passed | 8 |
+| Score | 75% |
+| Passed | 6 |
 | Failed | 0 |
-| Warnings | 2 |
+| Warnings | 1 |
 | Skipped | 1 |
 | Target | nursery/ |
 | Attempts | 1 |

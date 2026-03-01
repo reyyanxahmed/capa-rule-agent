@@ -1,33 +1,16 @@
 # Issue #1050: detect mouse movement analysis for sandbox evasion
 
-Source: https://github.com/mandiant/capa-rules/issues/1050
+**Source:** [https://github.com/mandiant/capa-rules/issues/1050](https://github.com/mandiant/capa-rules/issues/1050)
+**Confidence:** LOW (67%)
+**Validation:** Passed on attempt 1/3
+**Sample available:** Yes (not locally available)
 
-## What this issue asks for
+## What the agent did
 
-A new rule to detect advanced mouse movement analysis used by malware to
-identify sandbox environments. Unlike the existing `check for unmoving mouse
-cursor` rule (which only looks for multiple `GetCursorPos` calls), this
-targets vector math APIs like `acos`, `sqrt`, `atan2` combined with cursor
-position sampling and timing functions.
-
-ATT&CK: T1497.002 (Virtualization/Sandbox Evasion: User Activity Based Checks)
-
-## No-sample quality gate path
-
-This example demonstrates the quality gate when the issue provides a sample
-hash but the binary is not available locally. The gate still runs:
-- Structural validation (YAML, schema, lint): all pass
-- Sibling analysis: 22% overlap with existing mouse cursor rule (low, good)
-- Negative testing: skipped (no benign corpus)
-- Semantic coherence: name/feature/ATT&CK alignment checks pass
-
-Result: MEDIUM confidence, routed to `nursery/`. This is the correct
-outcome: the rule is structurally sound and semantically coherent, but
-without sample testing we cannot confirm it actually detects the behavior.
+The issue describes mouse movement analysis as a sandbox evasion technique with a sample hash and decompiled code. The agent generated three detection variants: advanced pattern analysis (GetCursorPos + math functions), cursor polling in loops, and mouse-with-key-state correlation. The rule correctly preserved the original issue author in meta.authors. Sample hash was referenced but not locally available for testing.
 
 ## Files
 
-- `input.json`: structured issue context
-- `generated_rule.yml`: offline template output (with Gemini, features would
-  include GetCursorPos, math APIs, Sleep/GetTickCount)
-- `quality_report.md`: full quality gate output
+- `input.json`: Issue metadata passed to the pipeline
+- `generated_rule.yml`: Gemini 3.1 Pro output (not a template)
+- `quality_report.md`: Quality gate layer-by-layer results

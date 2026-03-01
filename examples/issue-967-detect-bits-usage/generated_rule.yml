@@ -1,0 +1,31 @@
+rule:
+  meta:
+    name: interact with BITS
+    namespace: host-interaction/os/bits
+    authors:
+      - gsoc-agent@mandiant.com
+    description: Detects usage of Background Intelligent Transfer Service (BITS) via COM interfaces or command-line tools.
+    scopes:
+      static: function
+      dynamic: span of calls
+    att&ck:
+      - Defense Evasion::BITS Jobs [T1197]
+      - Persistence::BITS Jobs [T1197]
+    references:
+      - https://github.com/mandiant/capa-rules/pull/956#discussion_r1854082179_
+      - https://learn.microsoft.com/en-us/windows/win32/bits/background-intelligent-transfer-service-portal
+  features:
+    - or:
+      - string: "IBackgroundCopyManager"
+      - string: "IBackgroundCopyJob"
+      - string: "IBackgroundCopyCallback"
+      - string: "BackgroundCopyManager"
+      - string: /bitsadmin(?:\.exe)?/i
+      - string: /Start-BitsTransfer/i
+      - string: /Import-Module BitsTransfer/i
+      - string: /\{4991d34b-80a1-4291-83b6-3328366b9097\}/i
+      - string: /\{5ce34c0d-0dc9-4c1f-897c-daa1b78cee7c\}/i
+      - string: /\{37668d37-507e-4160-9316-26306d150b12\}/i
+      - bytes: 4B D3 91 49 A1 80 91 42 83 B6 33 28 36 6B 90 97  # CLSID_BackgroundCopyManager
+      - bytes: 0D 4C E3 5C C9 0D 1F 4C 89 7C DA A1 B7 8C EE 7C  # IID_IBackgroundCopyManager
+      - bytes: 37 8D 66 37 7E 50 60 41 93 16 26 30 6D 15 0B 12  # IID_IBackgroundCopyJob
